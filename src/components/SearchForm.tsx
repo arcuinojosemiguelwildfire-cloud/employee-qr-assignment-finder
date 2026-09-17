@@ -188,11 +188,6 @@ export const SearchForm: React.FC<SearchFormProps> = ({
         </div>
 
       </div>
-
-      {/* Discreet footer reassurance */}
-      <div className="text-center mt-6 text-xs text-slate-500">
-        <p>Having trouble? Please proceed to the Event Help Desk.</p>
-      </div>
     </motion.div>
   );
 };
