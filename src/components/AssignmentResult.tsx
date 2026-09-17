@@ -50,61 +50,76 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-600" />
 
         {/* Success confirmation - compact and subtle */}
-        <div className="flex items-center justify-center gap-1.5 mb-2.5 text-emerald-700">
+        <div className="flex items-center justify-center gap-1.5 mb-1 text-emerald-700">
           <CheckCircle2 className="w-4 h-4 stroke-[2.4]" />
           <span className="text-xs sm:text-sm font-bold tracking-tight">You're All Set!</span>
         </div>
 
-        {/* Priority 1: The Three Core Assignment Cards (Stacked Vertically) */}
-        <div className="space-y-3.5">
-          
-          {/* 1. YOUR GROUP */}
-          <div 
-            id="assignment-card-group"
-            className="p-4 sm:p-5 rounded-2xl bg-indigo-50/70 border border-indigo-100/90 shadow-xs text-center transition-all"
-          >
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-100/80 text-indigo-800 text-[11px] font-extrabold tracking-wider uppercase mb-1.5">
+        {/* Employee Identity */}
+        <div className="text-center mb-5">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight leading-snug">
+            {assignment.employee_name}
+          </h2>
+          <p className="text-xs font-mono font-semibold text-slate-500 mt-0.5">
+            {assignment.employee_number}
+          </p>
+        </div>
+
+        {/* Priority 1: ONE Unified Assignment Card */}
+        <div 
+          id="unified-assignment-card"
+          className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs text-center"
+        >
+          {/* Card Badge / Title */}
+          <div className="mb-4">
+            <span className="inline-flex items-center px-3 py-1 rounded-full bg-white text-slate-700 text-[11px] font-extrabold tracking-widest uppercase border border-slate-200/90 shadow-2xs">
+              YOUR ASSIGNMENT
+            </span>
+          </div>
+
+          {/* Section 1: YOUR GROUP */}
+          <div id="assignment-group-section" className="py-2">
+            <div className="inline-flex items-center justify-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-indigo-700 mb-1">
               <Users className="w-3.5 h-3.5 stroke-[2.2]" />
               <span>YOUR GROUP</span>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-950 tracking-tight">
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {assignment.group_name}
             </p>
           </div>
 
-          {/* 2. YOUR TABLE */}
-          <div 
-            id="assignment-card-table"
-            className="p-4 sm:p-5 rounded-2xl bg-sky-50/70 border border-sky-100/90 shadow-xs text-center transition-all"
-          >
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-100/80 text-sky-800 text-[11px] font-extrabold tracking-wider uppercase mb-1.5">
+          {/* Divider */}
+          <div className="border-t border-slate-200/70 my-3.5" />
+
+          {/* Section 2: YOUR TABLE */}
+          <div id="assignment-table-section" className="py-2">
+            <div className="inline-flex items-center justify-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-sky-700 mb-1">
               <Layers className="w-3.5 h-3.5 stroke-[2.2]" />
               <span>YOUR TABLE</span>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-sky-950 tracking-tight">
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {assignment.table_name}
             </p>
           </div>
 
-          {/* 3. YOUR ROOM */}
-          <div 
-            id="assignment-card-room"
-            className="p-4 sm:p-5 rounded-2xl bg-teal-50/70 border border-teal-100/90 shadow-xs text-center transition-all"
-          >
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-100/80 text-teal-800 text-[11px] font-extrabold tracking-wider uppercase mb-1.5">
+          {/* Divider */}
+          <div className="border-t border-slate-200/70 my-3.5" />
+
+          {/* Section 3: YOUR ROOM */}
+          <div id="assignment-room-section" className="py-2">
+            <div className="inline-flex items-center justify-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-teal-700 mb-1">
               <MapPin className="w-3.5 h-3.5 stroke-[2.2]" />
               <span>YOUR ROOM</span>
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-teal-950 tracking-tight">
+            <p className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               {assignment.room_name}
             </p>
             {assignment.room_details && (
-              <p className="text-xs font-medium text-teal-800/80 mt-1">
+              <p className="text-xs sm:text-sm font-medium text-slate-600 mt-1">
                 {assignment.room_details}
               </p>
             )}
           </div>
-
         </div>
 
         {/* Supporting Actions: Copy Info & Search Again */}
