@@ -99,14 +99,6 @@ export const QrCodeModal: React.FC<QrCodeModalProps> = ({ isOpen, onClose }) => 
                   </>
                 )}
               </button>
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
-              >
-                Close
-              </button>
             </div>
           </motion.div>
         </div>

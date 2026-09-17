@@ -60,12 +60,8 @@ export const SearchForm: React.FC<SearchFormProps> = ({
         <div className="text-center mb-7 pt-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold tracking-widest uppercase mb-3 border border-indigo-100/80">
             <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-            WELCOME
+            Ultramega Expo 2026
           </div>
-          
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-2">
-            Find Your Assignment
-          </h2>
           
           <p className="text-sm sm:text-base text-slate-600 max-w-md mx-auto leading-relaxed mt-4">
             Enter your employee number to view your group and assigned table/room.

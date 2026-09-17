@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Lock } from 'lucide-react';
 import { BackgroundDecoration } from './components/BackgroundDecoration';
-import { EventHeader } from './components/EventHeader';
 import { SearchForm } from './components/SearchForm';
 import { AssignmentResult } from './components/AssignmentResult';
 import { QrCodeModal } from './components/QrCodeModal';
@@ -104,11 +103,6 @@ export default function App() {
       {/* Decorative Brand Background */}
       <BackgroundDecoration />
 
-      {/* Header only on public view */}
-      {currentView === 'public' && (
-        <EventHeader onOpenQrModal={() => setIsQrModalOpen(true)} />
-      )}
-
       {/* Main Content Area */}
       <main className="flex-1 flex items-center justify-center py-4 sm:py-8">
         <AnimatePresence mode="wait">
@@ -140,6 +134,7 @@ export default function App() {
               key="assignment-result"
               assignment={assignment}
               onSearchAgain={handleSearchAgain}
+              onOpenQrModal={() => setIsQrModalOpen(true)}
             />
           )}
         </AnimatePresence>

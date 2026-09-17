@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { 
-  CheckCircle2, 
   RotateCcw, 
-  Users, 
-  Layers, 
-  MapPin, 
   Copy, 
-  Check 
+  Check,
+  QrCode 
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { EmployeeAssignment } from '../types';
@@ -14,11 +11,13 @@ import { EmployeeAssignment } from '../types';
 interface AssignmentResultProps {
   assignment: EmployeeAssignment;
   onSearchAgain: () => void;
+  onOpenQrModal?: () => void;
 }
 
 export const AssignmentResult: React.FC<AssignmentResultProps> = ({
   assignment,
   onSearchAgain,
+  onOpenQrModal,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -36,6 +35,11 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
     }
   };
 
+  // Split room details by ' • ' if multiple lines exist (e.g. Grand Ballroom • 3rd Floor)
+  const roomDetailLines = assignment.room_details 
+    ? assignment.room_details.split(' • ').map(s => s.trim()).filter(Boolean)
+    : [];
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97, y: 14 }}
@@ -43,83 +47,107 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
       transition={{ duration: 0.28, ease: 'easeOut' }}
       className="w-full max-w-md mx-auto px-4"
     >
-      {/* Main Result Card */}
-      <div className="relative bg-white/95 backdrop-blur-md rounded-3xl p-5 sm:p-7 shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
+      {/* Single Unified White Container / Corporate Pass */}
+      <div className="relative bg-white rounded-3xl p-6 sm:p-7 shadow-xl shadow-slate-200/70 border border-slate-200/80 overflow-hidden">
         
         {/* Subtle decorative top accent bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-sky-500 to-indigo-600" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-600 via-sky-500 to-teal-500" />
 
-        {/* Success confirmation - compact and subtle */}
-        <div className="flex items-center justify-center gap-1.5 mb-2.5 text-emerald-700">
-          <CheckCircle2 className="w-4 h-4 stroke-[2.4]" />
-          <span className="text-xs sm:text-sm font-bold tracking-tight">You're All Set!</span>
+        {/* Top Header: Event Brand Badge & Event QR Button */}
+        <div className="flex items-start justify-between mb-4 pt-1">
+          <div className="flex items-center gap-1.5">
+            {/* Employee Information Section (Left Aligned) */}
+            <div className="mb-5 text-left">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight leading-snug">
+                {assignment.employee_name}
+              </h2>
+              <p className="text-xs font-mono font-medium text-slate-500 mt-1">
+                {assignment.employee_number}
+                {assignment.department ? ` • ${assignment.department}` : ''}
+              </p>
+            </div>
+          </div>
+
+          {onOpenQrModal && (
+            <button
+              type="button"
+              id="event-qr-button"
+              onClick={onOpenQrModal}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 border border-slate-200/80 transition-all cursor-pointer shadow-2xs"
+              title="Show Event QR Code"
+            >
+              <QrCode className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Event QR</span>
+            </button>
+          )}
         </div>
 
-        {/* Priority 1: The Three Core Assignment Cards (Stacked Vertically) */}
-        <div className="space-y-3.5">
+        {/* Horizontal Assignment Rows (Data Sheet / Pass Style) */}
+        <div className="border-t border-slate-200/80">
           
-          {/* 1. YOUR GROUP */}
+          {/* Row 1: GROUP */}
           <div 
-            id="assignment-card-group"
-            className="p-4 sm:p-5 rounded-2xl bg-teal-50/70 border border-teal-100/90 shadow-xs text-center transition-all"
+            id="assignment-row-group"
+            className="flex items-baseline justify-between py-4 border-b border-slate-200/70"
           >
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-100/80 text-sky-800 text-[11px] font-extrabold tracking-wider uppercase mb-1.5">
-              <Users className="w-3.5 h-3.5 stroke-[2.2]" />
-              <span>GROUP</span>
-            </div>
-            <p className="text-2xl sm:text-3xl font-black text-indigo-950 tracking-tight">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 shrink-0">
+              GROUP
+            </span>
+            <span className="text-lg sm:text-xl font-bold text-indigo-950 tracking-tight text-right pl-4">
               {assignment.group_name}
-            </p>
+            </span>
           </div>
 
-          {/* 2. YOUR TABLE */}
+          {/* Row 2: TABLE */}
           <div 
-            id="assignment-card-table"
-            className="p-4 sm:p-5 rounded-2xl bg-teal-50/70 border border-teal-100/90 shadow-xs text-center transition-all"
+            id="assignment-row-table"
+            className="flex items-baseline justify-between py-4 border-b border-slate-200/70"
           >
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-100/80 text-sky-800 text-[11px] font-extrabold tracking-wider uppercase mb-1.5">
-              <Layers className="w-3.5 h-3.5 stroke-[2.2]" />
-              <span>TABLE</span>
-            </div>
-            <p className="text-2xl sm:text-3xl font-black text-sky-950 tracking-tight">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 shrink-0">
+              TABLE
+            </span>
+            <span className="text-lg sm:text-xl font-bold text-indigo-950 tracking-tight text-right pl-4">
               {assignment.table_name}
-            </p>
+            </span>
           </div>
 
-          {/* 3. YOUR ROOM */}
+          {/* Row 3: ROOM */}
           <div 
-            id="assignment-card-room"
-            className="p-4 sm:p-5 rounded-2xl bg-teal-50/70 border border-teal-100/90 shadow-xs text-center transition-all"
+            id="assignment-row-room"
+            className="flex items-start justify-between py-4 border-b border-slate-200/70"
           >
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-100/80 text-sky-800 text-[11px] font-extrabold tracking-wider uppercase mb-1.5">
-              <MapPin className="w-3.5 h-3.5 stroke-[2.2]" />
-              <span>ROOM</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 shrink-0 pt-0.5">
+              ROOM
+            </span>
+            <div className="text-right pl-4">
+              <div className="text-lg sm:text-xl font-bold text-indigo-950 tracking-tight">
+                {assignment.room_name}
+              </div>
+              {roomDetailLines.length > 0 && (
+                <div className="text-xs font-medium text-slate-500 mt-1 space-y-0.5 leading-tight">
+                  {roomDetailLines.map((line, idx) => (
+                    <div key={idx}>{line}</div>
+                  ))}
+                </div>
+              )}
             </div>
-            <p className="text-2xl sm:text-3xl font-black text-teal-950 tracking-tight">
-              {assignment.room_name}
-            </p>
-            {assignment.room_details && (
-              <p className="text-xs font-medium text-teal-800/80 mt-1">
-                {assignment.room_details}
-              </p>
-            )}
           </div>
 
         </div>
 
         {/* Supporting Actions: Copy Info & Search Again */}
-        <div className="mt-5 space-y-2.5">
-          {/* Copy Info button */}
+        <div className="mt-6 flex items-center gap-2.5">
+          {/* Copy Info Button */}
           <button
             type="button"
             id="copy-assignment-button"
             onClick={handleCopy}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 active:bg-slate-200/60 border border-slate-200/80 transition-all cursor-pointer shadow-2xs"
+            className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 active:bg-slate-200/60 border border-slate-200/80 transition-all cursor-pointer shadow-2xs"
           >
             {copied ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-                <span className="text-emerald-700 font-bold">Assignment Details Copied!</span>
+                <span className="text-emerald-700 font-bold">Copied!</span>
               </>
             ) : (
               <>
@@ -129,21 +157,21 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
             )}
           </button>
 
-          {/* Search Again button */}
+          {/* Search Again Button */}
           <button
             type="button"
             id="search-again-button"
             onClick={onSearchAgain}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-bold text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.99] border border-slate-200 transition-all cursor-pointer shadow-2xs"
+            className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.99] border border-slate-200 transition-all cursor-pointer shadow-2xs"
           >
-            <RotateCcw className="w-4 h-4 text-slate-500" />
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
             <span>SEARCH AGAIN</span>
           </button>
         </div>
 
       </div>
 
-      {/* Footer Support Message */}
+      {/* Footer Guidance Notice */}
       <div className="text-center mt-5 text-[11px] text-slate-400">
         <p>Need help finding your seat? Event marshals are stationed at hall entrances.</p>
       </div>
