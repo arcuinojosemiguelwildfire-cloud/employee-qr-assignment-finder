@@ -1,0 +1,7 @@
+{
+  "name": "Employee QR Assignment Finder",
+  "description": "Mobile-first corporate event website for employees to find their assigned group, table, and room by entering their employee number.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
