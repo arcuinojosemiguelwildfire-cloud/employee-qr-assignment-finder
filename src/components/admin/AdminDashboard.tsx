@@ -16,11 +16,13 @@ import {
   AlertTriangle,
   RefreshCw,
   ClipboardCheck,
+  EyeOff,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EmployeeAssignment } from '../../types';
 import { employeeStore } from '../../services/employeeStore';
 import { supabaseEmployeeService } from '../../services/supabaseEmployeeService';
+import { appSettingsService } from '../../services/appSettingsService';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { adminAuth } from '../../services/adminAuth';
 import {
@@ -75,6 +77,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isBackupsModalOpen, setIsBackupsModalOpen] = useState<boolean>(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState<boolean>(false);
+
+  // Global "TBC Mode" — a display-only override for the PUBLIC assignment
+  // result (see appSettingsService.ts). Never reads/writes any employee
+  // record; this dashboard's own employee table always shows real values
+  // regardless of this setting.
+  const [tbcMode, setTbcMode] = useState<boolean>(false);
+  const [isTbcLoading, setIsTbcLoading] = useState<boolean>(true);
+  const [isTbcToggling, setIsTbcToggling] = useState<boolean>(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    appSettingsService.getTbcMode().then((value) => {
+      if (!cancelled) {
+        setTbcMode(value);
+        setIsTbcLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleToggleTbcMode = async () => {
+    setIsTbcToggling(true);
+    const nextValue = !tbcMode;
+    const adminKey = adminAuth.getAdminKey() || '';
+    const result = await appSettingsService.setTbcMode(adminKey, nextValue);
+    setIsTbcToggling(false);
+
+    if (result.success) {
+      setTbcMode(result.tbcMode ?? nextValue);
+      showToast(
+        (result.tbcMode ?? nextValue)
+          ? 'TBC Mode enabled — public results will show "TBC" for MEM Group and Tables.'
+          : 'TBC Mode disabled — public results will show actual MEM Group and Tables again.'
+      );
+    } else {
+      showToast(result.error || 'Failed to update TBC Mode.');
+    }
+  };
 
   const showToast = (message: string) => {
     setNotification(message);
@@ -344,6 +386,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span>Logout</span>
           </button>
         </div>
+      </div>
+
+      {/* TBC Mode — global, event-wide switch. Display-only override for the
+          PUBLIC assignment result (see appSettingsService.ts); never
+          touches any employee record. Placed near the other event/system
+          controls above. */}
+      <div className="mb-5 p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div
+            className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+              tbcMode ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-slate-50 border-slate-200 text-slate-400'
+            }`}
+          >
+            <EyeOff className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-700">TBC Mode</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {isTbcLoading
+                ? 'Loading current setting...'
+                : tbcMode
+                ? 'ON — MEM Group & Tables = TBC on the public result'
+                : 'OFF — Normal Assignment Values'}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="tbc-mode-toggle"
+          role="switch"
+          aria-checked={tbcMode}
+          aria-label="Toggle TBC Mode"
+          onClick={handleToggleTbcMode}
+          disabled={isTbcLoading || isTbcToggling}
+          className={`relative inline-flex h-7 w-14 shrink-0 items-center rounded-full transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+            tbcMode ? 'bg-amber-500' : 'bg-slate-300'
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+              tbcMode ? 'translate-x-8' : 'translate-x-1'
+            }`}
+          />
+        </button>
       </div>
 
       {/* Data source notice: only shown when NOT reading the shared Supabase

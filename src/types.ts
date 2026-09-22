@@ -98,4 +98,12 @@ export interface LookupResponse {
   data?: EmployeeAssignment;
   questions?: string[];
   message?: string;
+  /**
+   * Global "TBC Mode" flag (see appSettingsService.ts), read fresh on every
+   * lookup. When true, the public result must display "TBC" for MEM Group
+   * and Tables instead of `data.mem_group`/`data.mem_priority_group`/
+   * `data.tables` — those fields themselves are untouched, this is display
+   * guidance only.
+   */
+  tbcMode?: boolean;
 }

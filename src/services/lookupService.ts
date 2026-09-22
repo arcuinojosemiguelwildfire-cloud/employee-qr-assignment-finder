@@ -1,6 +1,7 @@
 import { LookupResponse } from '../types';
 import { employeeStore } from './employeeStore';
 import { supabaseEmployeeService } from './supabaseEmployeeService';
+import { appSettingsService } from './appSettingsService';
 import { isSupabaseConfigured } from './supabaseClient';
 import { getProcessQuestions } from '../data/seedEmployees';
 
@@ -43,13 +44,20 @@ export async function lookupEmployeeAssignment(
 
   if (isSupabaseConfigured) {
     try {
-      const found = await supabaseEmployeeService.findByNumber(employeeNumber);
+      // Fetched together (not sequentially) to avoid an extra round trip on
+      // every search. getTbcMode() never throws — it degrades internally —
+      // so a failure here can only come from findByNumber().
+      const [found, tbcMode] = await Promise.all([
+        supabaseEmployeeService.findByNumber(employeeNumber),
+        appSettingsService.getTbcMode(),
+      ]);
       if (found) {
         const questions = getProcessQuestions(found.mem_priority_group);
         return {
           success: true,
           data: found,
           questions,
+          tbcMode,
         };
       }
       // Supabase responded successfully but found no match — this is a
@@ -72,10 +80,12 @@ export async function lookupEmployeeAssignment(
   const found = employeeStore.findByNumber(employeeNumber);
   if (found) {
     const questions = getProcessQuestions(found.mem_priority_group);
+    const tbcMode = await appSettingsService.getTbcMode();
     return {
       success: true,
       data: found,
       questions,
+      tbcMode,
     };
   }
 

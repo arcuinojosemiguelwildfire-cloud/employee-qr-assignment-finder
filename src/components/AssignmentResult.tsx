@@ -14,6 +14,15 @@ interface AssignmentResultProps {
   onSearchAgain: () => void;
   onOpenQrModal?: () => void;
   questions?: string[];
+  /**
+   * Global "TBC Mode" flag (see appSettingsService.ts / lookupService.ts).
+   * When true, MEM Group and Tables must display "TBC" instead of the
+   * employee's real values. This is display-only — `assignment.mem_group`,
+   * `assignment.mem_priority_group`, and `assignment.tables` are never
+   * modified; everything else on this card (name, number, Event QR,
+   * Reflective Question) is unaffected.
+   */
+  tbcMode?: boolean;
 }
 
 export const AssignmentResult: React.FC<AssignmentResultProps> = ({
@@ -21,6 +30,7 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
   onSearchAgain,
   onOpenQrModal,
   questions: passedQuestions,
+  tbcMode = false,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -37,15 +47,20 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
   // "Digital Transformation 7"). Shared convention — see
   // formatCombinedMemGroup in seedEmployees.ts (also used by the Admin
   // Employee Data Verification feature) so this never drifts out of sync.
-  const memGroupDisplay = formatCombinedMemGroup(assignment.mem_priority_group, assignment.mem_group);
+  // Overridden to "TBC" when the global TBC Mode setting is on.
+  const memGroupDisplay = tbcMode
+    ? 'TBC'
+    : formatCombinedMemGroup(assignment.mem_priority_group, assignment.mem_group);
 
   const handleCopy = async () => {
-    const tablesStr = assignment.tables && assignment.tables.length > 0
+    const tablesStr = tbcMode
+      ? 'TBC'
+      : assignment.tables && assignment.tables.length > 0
       ? assignment.tables.join(', ')
       : 'Unassigned';
 
     const questionsText = questions.length > 0
-      ? `\n\nProcess Question${questions.length > 1 ? 's' : ''}:\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
+      ? `\n\nReflective Question${questions.length > 1 ? 's' : ''}:\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
       : '';
 
     const summary = `${displayName} (${assignment.employee_number})\nMEM Group: ${memGroupDisplay}\nTable(s): ${tablesStr}${questionsText}`;
@@ -121,20 +136,26 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
             </span>
           </div>
 
-          {/* Row 2: TABLE / TABLES */}
-          <div 
+          {/* Row 2: TABLE / TABLES — shows "TBC" when the global TBC Mode
+              setting is on, instead of the employee's real table(s). The
+              underlying assignment.tables array itself is never touched. */}
+          <div
             id="assignment-row-table"
             className="flex items-start justify-between py-4 border-b border-slate-200/70"
           >
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 shrink-0 pt-0.5">
-              {assignment.tables && assignment.tables.length > 1 ? 'TABLES' : 'TABLE'}
+              {tbcMode || (assignment.tables && assignment.tables.length > 1) ? 'TABLES' : 'TABLE'}
             </span>
             <div className="text-right pl-4">
-              {assignment.tables && assignment.tables.length > 0 ? (
+              {tbcMode ? (
+                <span className="text-base sm:text-lg font-bold text-indigo-950 tracking-tight">
+                  TBC
+                </span>
+              ) : assignment.tables && assignment.tables.length > 0 ? (
                 <div className="flex flex-col items-end gap-1">
                   {assignment.tables.map((table, idx) => (
-                    <span 
-                      key={idx} 
+                    <span
+                      key={idx}
                       className="text-base sm:text-lg font-bold text-indigo-950 tracking-tight"
                     >
                       {table}
@@ -151,11 +172,11 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
 
         </div>
 
-        {/* Process Questions Section (Display-Only) */}
+        {/* Reflective Question(s) Section (Display-Only) — unaffected by TBC Mode */}
         {questions.length > 0 && (
           <div className="pt-4 border-b border-slate-200/70 pb-4 text-left">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
-              {questions.length > 1 ? 'PROCESS QUESTIONS' : 'PROCESS QUESTION'}
+              {questions.length > 1 ? 'REFLECTIVE QUESTIONS' : 'REFLECTIVE QUESTION'}
             </span>
             <div className="space-y-2.5">
               {questions.map((q, idx) => (

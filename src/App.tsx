@@ -16,6 +16,10 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
+  // Global "TBC Mode" flag, read fresh with every lookup (see
+  // lookupService.ts / appSettingsService.ts) — display-only, never
+  // touches the underlying employee record.
+  const [tbcMode, setTbcMode] = useState<boolean>(false);
 
   // View routing & Admin session
   const [currentView, setCurrentView] = useState<'public' | 'admin'>(() => {
@@ -58,6 +62,7 @@ export default function App() {
       const response = await lookupEmployeeAssignment(employeeNumber);
       if (response.success && response.data) {
         setAssignment(response.data);
+        setTbcMode(Boolean(response.tbcMode));
       } else {
         setErrorMessage(
           response.message || 'Employee number not found. Please check your employee number and try again.'
@@ -124,6 +129,7 @@ export default function App() {
             <AssignmentResult
               key="assignment-result"
               assignment={assignment}
+              tbcMode={tbcMode}
               onSearchAgain={handleSearchAgain}
               onOpenQrModal={() => setIsQrModalOpen(true)}
             />
