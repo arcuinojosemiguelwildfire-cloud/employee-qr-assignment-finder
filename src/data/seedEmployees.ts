@@ -151,6 +151,28 @@ export function normalizeDisplayName(rawName: string): string {
 }
 
 /**
+ * The single "combined MEM Group" display convention used across the app
+ * (public assignment result, admin verification tools): joins
+ * `mem_priority_group` + " " + `mem_group`, e.g. "Digital Transformation 7"
+ * or "Efficiency 5". The two underlying fields are never modified — this
+ * only formats them for display. Each part is trimmed and blank/null/
+ * undefined values are dropped so missing data never shows as "undefined",
+ * "null", or leaves a stray leading/trailing space; falls back to "—" if
+ * both parts are empty.
+ */
+export function formatCombinedMemGroup(
+  memPriorityGroup: string | undefined | null,
+  memGroup: string | undefined | null
+): string {
+  return (
+    [memPriorityGroup, memGroup]
+      .map((v) => (v == null ? '' : String(v).trim()))
+      .filter(Boolean)
+      .join(' ') || '—'
+  );
+}
+
+/**
  * Utility to parse and normalize the "Table #" column from Excel.
  * Handles inputs like:
  * - "Table 3,6,8,9,12" -> ["Table 3", "Table 6", "Table 8", "Table 9", "Table 12"]

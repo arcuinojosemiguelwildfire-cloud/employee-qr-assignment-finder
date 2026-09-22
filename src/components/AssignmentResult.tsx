@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { EmployeeAssignment } from '../types';
-import { getProcessQuestions, normalizeDisplayName } from '../data/seedEmployees';
+import { formatCombinedMemGroup, getProcessQuestions, normalizeDisplayName } from '../data/seedEmployees';
 
 interface AssignmentResultProps {
   assignment: EmployeeAssignment;
@@ -34,16 +34,10 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
     normalizeDisplayName(assignment.name || assignment.employee_name || '') || 'Attendee';
 
   // Combined MEM Group display: "<mem_priority_group> <mem_group>" (e.g.
-  // "Digital Transformation 7"). The underlying `mem_priority_group` and
-  // `mem_group` fields themselves are untouched — this only affects what's
-  // rendered/copied on this page. Each part is trimmed and blank/null/
-  // undefined values are dropped so missing data never shows as
-  // "undefined", "null", or leaves a stray leading/trailing space.
-  const memGroupDisplay =
-    [assignment.mem_priority_group, assignment.mem_group]
-      .map((v) => (v == null ? '' : String(v).trim()))
-      .filter(Boolean)
-      .join(' ') || '—';
+  // "Digital Transformation 7"). Shared convention — see
+  // formatCombinedMemGroup in seedEmployees.ts (also used by the Admin
+  // Employee Data Verification feature) so this never drifts out of sync.
+  const memGroupDisplay = formatCombinedMemGroup(assignment.mem_priority_group, assignment.mem_group);
 
   const handleCopy = async () => {
     const tablesStr = assignment.tables && assignment.tables.length > 0

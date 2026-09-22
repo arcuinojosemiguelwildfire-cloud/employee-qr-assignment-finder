@@ -15,6 +15,7 @@ import {
   Loader2,
   AlertTriangle,
   RefreshCw,
+  ClipboardCheck,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EmployeeAssignment } from '../../types';
@@ -32,6 +33,7 @@ import { EmployeeModal } from './EmployeeModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { XlsxImportModal } from './XlsxImportModal';
 import { BackupsModal } from './BackupsModal';
+import { EmployeeVerificationModal } from './EmployeeVerificationModal';
 
 interface AdminDashboardProps {
   onBackToPublic: () => void;
@@ -72,6 +74,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [notification, setNotification] = useState<string | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isBackupsModalOpen, setIsBackupsModalOpen] = useState<boolean>(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState<boolean>(false);
 
   const showToast = (message: string) => {
     setNotification(message);
@@ -300,6 +303,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            id="verify-data-button"
+            onClick={() => setIsVerificationModalOpen(true)}
+            title="Verify Employee Numbers against the current dataset"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 transition-all shadow-2xs cursor-pointer"
+          >
+            <ClipboardCheck className="w-3.5 h-3.5 text-slate-500" />
+            <span className="hidden sm:inline">Verify Data</span>
+          </button>
+
           <button
             type="button"
             id="backups-button"
@@ -632,6 +646,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             fetchEmployees();
           }
         }}
+      />
+
+      {/* Employee Data Verification (read-only) — reuses the same
+          already-loaded `employees` list, no extra Supabase query. */}
+      <EmployeeVerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        employees={employees}
+        onRefresh={fetchEmployees}
       />
     </div>
   );
