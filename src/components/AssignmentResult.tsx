@@ -20,7 +20,7 @@ interface AssignmentResultProps {
    * employee's real values. This is display-only — `assignment.mem_group`,
    * `assignment.mem_priority_group`, and `assignment.tables` are never
    * modified; everything else on this card (name, number, Event QR,
-   * Reflective Question) is unaffected.
+   * Reflection Question) is unaffected.
    */
   tbcMode?: boolean;
 }
@@ -60,7 +60,7 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
       : 'Unassigned';
 
     const questionsText = questions.length > 0
-      ? `\n\nReflective Question${questions.length > 1 ? 's' : ''}:\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
+      ? `\n\nReflection Question${questions.length > 1 ? 's' : ''}:\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
       : '';
 
     const summary = `${displayName} (${assignment.employee_number})\nMEM Group: ${memGroupDisplay}\nTable(s): ${tablesStr}${questionsText}`;
@@ -172,11 +172,11 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
 
         </div>
 
-        {/* Reflective Question(s) Section (Display-Only) — unaffected by TBC Mode */}
+        {/* Reflection Question(s) Section (Display-Only) — unaffected by TBC Mode */}
         {questions.length > 0 && (
           <div className="pt-4 border-b border-slate-200/70 pb-4 text-left">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">
-              {questions.length > 1 ? 'REFLECTIVE QUESTIONS' : 'REFLECTIVE QUESTION'}
+              {questions.length > 1 ? 'REFLECTION QUESTIONS' : 'REFLECTION QUESTION'}
             </span>
             <div className="space-y-2.5">
               {questions.map((q, idx) => (
