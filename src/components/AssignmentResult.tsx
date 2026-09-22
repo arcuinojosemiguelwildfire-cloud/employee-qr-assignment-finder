@@ -33,16 +33,28 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
   const displayName =
     normalizeDisplayName(assignment.name || assignment.employee_name || '') || 'Attendee';
 
+  // Combined MEM Group display: "<mem_priority_group> <mem_group>" (e.g.
+  // "Digital Transformation 7"). The underlying `mem_priority_group` and
+  // `mem_group` fields themselves are untouched — this only affects what's
+  // rendered/copied on this page. Each part is trimmed and blank/null/
+  // undefined values are dropped so missing data never shows as
+  // "undefined", "null", or leaves a stray leading/trailing space.
+  const memGroupDisplay =
+    [assignment.mem_priority_group, assignment.mem_group]
+      .map((v) => (v == null ? '' : String(v).trim()))
+      .filter(Boolean)
+      .join(' ') || '—';
+
   const handleCopy = async () => {
-    const tablesStr = assignment.tables && assignment.tables.length > 0 
-      ? assignment.tables.join(', ') 
+    const tablesStr = assignment.tables && assignment.tables.length > 0
+      ? assignment.tables.join(', ')
       : 'Unassigned';
-    
+
     const questionsText = questions.length > 0
       ? `\n\nProcess Question${questions.length > 1 ? 's' : ''}:\n${questions.map((q, i) => `${i + 1}. ${q}`).join('\n')}`
       : '';
 
-    const summary = `${displayName} (${assignment.employee_number})\nMEM Group: ${assignment.mem_group}\nMEM Priority Group: ${assignment.mem_priority_group}\nTable(s): ${tablesStr}${questionsText}`;
+    const summary = `${displayName} (${assignment.employee_number})\nMEM Group: ${memGroupDisplay}\nTable(s): ${tablesStr}${questionsText}`;
 
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -100,8 +112,10 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
         {/* Horizontal Assignment Rows (Data Sheet / Pass Style) */}
         <div className="border-t border-slate-200/80">
           
-          {/* Row 1: MEM GROUP */}
-          <div 
+          {/* Row 1: MEM GROUP — combined "<priority group> <group>" display
+              (e.g. "Digital Transformation 7"). MEM Priority Group is no
+              longer shown as its own separate row on this page. */}
+          <div
             id="assignment-row-mem-group"
             className="flex items-baseline justify-between py-4 border-b border-slate-200/70"
           >
@@ -109,24 +123,11 @@ export const AssignmentResult: React.FC<AssignmentResultProps> = ({
               MEM GROUP
             </span>
             <span className="text-lg sm:text-xl font-bold text-indigo-950 tracking-tight text-right pl-4">
-              {assignment.mem_group}
+              {memGroupDisplay}
             </span>
           </div>
 
-          {/* Row 2: MEM PRIORITY GROUP */}
-          <div 
-            id="assignment-row-priority-group"
-            className="flex items-baseline justify-between py-4 border-b border-slate-200/70"
-          >
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 shrink-0">
-              MEM PRIORITY GROUP
-            </span>
-            <span className="text-lg sm:text-xl font-bold text-indigo-950 tracking-tight text-right pl-4">
-              {assignment.mem_priority_group}
-            </span>
-          </div>
-
-          {/* Row 3: TABLE / TABLES */}
+          {/* Row 2: TABLE / TABLES */}
           <div 
             id="assignment-row-table"
             className="flex items-start justify-between py-4 border-b border-slate-200/70"
