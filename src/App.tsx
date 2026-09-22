@@ -7,7 +7,6 @@ import { QrCodeModal } from './components/QrCodeModal';
 import { AdminLogin } from './components/admin/AdminLogin';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { lookupEmployeeAssignment } from './services/lookupService';
-import { employeeStore } from './services/employeeStore';
 import { adminAuth, AdminUser } from './services/adminAuth';
 import { EmployeeAssignment } from './types';
 
@@ -26,22 +25,17 @@ export default function App() {
     return 'public';
   });
   const [adminUser, setAdminUser] = useState<AdminUser | null>(() => adminAuth.getCurrentUser());
-  const [employees, setEmployees] = useState<EmployeeAssignment[]>(() => employeeStore.getAll());
 
-  // Listen to employee store modifications to keep both views perfectly synchronized
-  useEffect(() => {
-    const unsubscribe = employeeStore.subscribe((updated) => {
-      setEmployees(updated);
-      // If the currently viewed public assignment was updated, sync it live
-      if (assignment) {
-        const fresh = updated.find((e) => String(e.id) === String(assignment.id));
-        if (fresh) {
-          setAssignment(fresh);
-        }
-      }
-    });
-    return unsubscribe;
-  }, [assignment]);
+  // NOTE (Supabase migration, PHASE 11 privacy requirement): the full
+  // employee list is intentionally NOT fetched here anymore. It used to be
+  // loaded unconditionally on every app load (public or admin) via
+  // employeeStore.getAll() — harmless when that just read localStorage, but
+  // once employee data lives in Supabase, unconditionally fetching "all
+  // employees" on every public visit would mean shipping the entire
+  // dataset to every phone that just wants to look up ONE employee number.
+  // AdminDashboard now owns fetching its own list (Supabase admin RPC),
+  // only when currentView === 'admin'. The public search/lookup path never
+  // requests more than the single matching record (see lookupService.ts).
 
   // Sync hash routing if user manually navigates to #/admin or #/
   useEffect(() => {
@@ -114,7 +108,6 @@ export default function App() {
             ) : (
               <AdminDashboard
                 key="admin-dashboard"
-                employees={employees}
                 onBackToPublic={navigateToPublic}
                 onLogout={handleAdminLogout}
               />

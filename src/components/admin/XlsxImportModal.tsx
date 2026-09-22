@@ -17,6 +17,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ImportPreviewData, ImportRowIssue, EmployeeAssignment } from '../../types';
 import { parseXlsxFile } from '../../services/xlsxImportService';
 import { employeeStore } from '../../services/employeeStore';
+import { supabaseEmployeeService } from '../../services/supabaseEmployeeService';
+import { isSupabaseConfigured } from '../../services/supabaseClient';
+import { adminAuth } from '../../services/adminAuth';
 
 interface XlsxImportModalProps {
   isOpen: boolean;
@@ -114,32 +117,74 @@ export const XlsxImportModal: React.FC<XlsxImportModalProps> = ({
     }
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (!previewData || previewData.validEmployees.length === 0) return;
 
     setIsConfirming(true);
+    setParseError(null);
 
-    // Atomic batch import into JSON store
-    const result = employeeStore.importBatch(previewData.validEmployees, {
-      fileName: previewData.fileName,
-    });
+    try {
+      if (isSupabaseConfigured) {
+        // PHASE 13: preserve the local backup/rollback trail without
+        // overwriting the local dataset itself — Supabase is now the write
+        // target, so this is purely an audit snapshot, not the import path.
+        try {
+          employeeStore.createBackup(
+            `Pre-import snapshot for ${previewData.fileName} (imported to Supabase)`,
+            previewData.fileName
+          );
+        } catch (backupErr) {
+          console.error('Local backup snapshot failed (non-fatal):', backupErr);
+        }
 
-    setIsConfirming(false);
+        const adminKey = adminAuth.getAdminKey() || '';
+        // Single round-trip, upserted server-side in one SQL statement
+        // (see admin_import_batch in the migration) — atomic, and the
+        // service verifies the returned count before reporting success.
+        const result = await supabaseEmployeeService.importBatch(adminKey, previewData.validEmployees);
 
-    if (result.success) {
-      const now = new Date();
-      setImportedStats({
-        count: result.count,
-        warnings: previewData.warningsCount,
-        excluded: previewData.excludedCount,
-        sourceRows: previewData.totalRowsDetected,
-        timestamp: now.toLocaleString(),
-        backupFileName: `employees.backup-${now.toISOString().slice(0, 10)}.json`,
+        if (result.success) {
+          const now = new Date();
+          setImportedStats({
+            count: result.count,
+            warnings: previewData.warningsCount,
+            excluded: previewData.excludedCount,
+            sourceRows: previewData.totalRowsDetected,
+            timestamp: now.toLocaleString(),
+            backupFileName: `employees.backup-${now.toISOString().slice(0, 10)}.json`,
+          });
+          setStep('success');
+          onImportComplete(result.count);
+        } else {
+          setParseError(result.error || 'Failed to complete import.');
+        }
+        return;
+      }
+
+      // Local fallback (Supabase not configured): unchanged prior behavior.
+      const result = employeeStore.importBatch(previewData.validEmployees, {
+        fileName: previewData.fileName,
       });
-      setStep('success');
-      onImportComplete(result.count);
-    } else {
-      setParseError(result.error || 'Failed to complete import.');
+
+      if (result.success) {
+        const now = new Date();
+        setImportedStats({
+          count: result.count,
+          warnings: previewData.warningsCount,
+          excluded: previewData.excludedCount,
+          sourceRows: previewData.totalRowsDetected,
+          timestamp: now.toLocaleString(),
+          backupFileName: `employees.backup-${now.toISOString().slice(0, 10)}.json`,
+        });
+        setStep('success');
+        onImportComplete(result.count);
+      } else {
+        setParseError(result.error || 'Failed to complete import.');
+      }
+    } catch (err: any) {
+      setParseError(err?.message || 'Failed to complete import.');
+    } finally {
+      setIsConfirming(false);
     }
   };
 

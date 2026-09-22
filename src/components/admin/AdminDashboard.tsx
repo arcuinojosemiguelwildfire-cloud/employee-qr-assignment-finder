@@ -1,22 +1,27 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Search, 
-  Edit3, 
-  Trash2, 
-  LogOut, 
-  ArrowLeft, 
-  Users, 
-  CheckCircle2, 
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  Plus,
+  Search,
+  Edit3,
+  Trash2,
+  LogOut,
+  ArrowLeft,
+  Users,
+  CheckCircle2,
   RotateCcw,
   X,
   FileSpreadsheet,
   History,
-  Download
+  Loader2,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EmployeeAssignment } from '../../types';
 import { employeeStore } from '../../services/employeeStore';
+import { supabaseEmployeeService } from '../../services/supabaseEmployeeService';
+import { isSupabaseConfigured } from '../../services/supabaseClient';
+import { adminAuth } from '../../services/adminAuth';
 import {
   normalizeDisplayName,
   normalizePriorityGroupKey,
@@ -29,16 +34,30 @@ import { XlsxImportModal } from './XlsxImportModal';
 import { BackupsModal } from './BackupsModal';
 
 interface AdminDashboardProps {
-  employees: EmployeeAssignment[];
   onBackToPublic: () => void;
   onLogout: () => void;
 }
 
+type LoadState = 'loading' | 'loaded' | 'error';
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
-  employees,
   onBackToPublic,
   onLogout,
 }) => {
+  // PHASE 9 (Supabase migration): the Admin Dashboard now owns fetching its
+  // own employee list — it is no longer handed down as a prop from App.tsx
+  // (see App.tsx's note on why the public flow must never fetch the full
+  // list). When Supabase is configured, this reads the SHARED dataset via
+  // the admin_list_employees RPC (admin-key protected — see
+  // supabase/migrations/001_initial_schema.sql). If Supabase is not
+  // configured, it falls back to the local employeeStore (localStorage) so
+  // the dashboard still works during local development before the two
+  // VITE_SUPABASE_* env vars are set.
+  const [employees, setEmployees] = useState<EmployeeAssignment[]>([]);
+  const [loadState, setLoadState] = useState<LoadState>('loading');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [usingLocalFallback, setUsingLocalFallback] = useState<boolean>(false);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -60,6 +79,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setNotification(null);
     }, 3500);
   };
+
+  const fetchEmployees = useCallback(async () => {
+    setLoadState('loading');
+    setLoadError(null);
+
+    if (isSupabaseConfigured) {
+      try {
+        const adminKey = adminAuth.getAdminKey() || '';
+        const list = await supabaseEmployeeService.getAll(adminKey);
+        setEmployees(list);
+        setUsingLocalFallback(false);
+        setLoadState('loaded');
+        return;
+      } catch (err: any) {
+        console.error('Failed to load employees from Supabase:', err);
+        setLoadError(err?.message || 'Unable to reach the shared employee database.');
+        setLoadState('error');
+        return;
+      }
+    }
+
+    // Supabase not configured — local fallback (development only)
+    try {
+      const list = employeeStore.getAll();
+      setEmployees(list);
+      setUsingLocalFallback(true);
+      setLoadState('loaded');
+    } catch (err: any) {
+      setLoadError(err?.message || 'Unable to load employee data.');
+      setLoadState('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
 
   // Dynamically computed MEM Priority Group counts for the summary cards.
   // Recalculated from the live `employees` list on every render — never hardcoded —
@@ -112,43 +167,99 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
-  const handleSave = (data: {
+  const handleSave = async (data: {
     employee_number: string;
     name: string;
     email?: string;
     mem_group: string;
     mem_priority_group: string;
     tables: string;
-  }) => {
+  }): Promise<{ success: boolean; error?: string }> => {
+    const tablesArray = data.tables
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    if (isSupabaseConfigured && !usingLocalFallback) {
+      const adminKey = adminAuth.getAdminKey() || '';
+      const result =
+        modalState.mode === 'add'
+          ? await supabaseEmployeeService.add(adminKey, { ...data, tables: tablesArray })
+          : await supabaseEmployeeService.update(
+              adminKey,
+              modalState.employee?.employee_number || '',
+              { ...data, tables: tablesArray, excel_row: modalState.employee?.excel_row }
+            );
+
+      if (result.success) {
+        showToast(
+          modalState.mode === 'add'
+            ? 'Employee added successfully.'
+            : 'Employee information updated successfully.'
+        );
+        await fetchEmployees();
+      }
+      return { success: result.success, error: result.error };
+    }
+
+    // Local fallback (Supabase not configured)
     if (modalState.mode === 'add') {
       const result = employeeStore.add(data);
       if (result.success) {
         showToast('Employee added successfully.');
+        await fetchEmployees();
       }
       return result;
     } else if (modalState.mode === 'edit' && modalState.employee) {
       const result = employeeStore.update(modalState.employee.id || '', data);
       if (result.success) {
         showToast('Employee information updated successfully.');
+        await fetchEmployees();
       }
       return result;
     }
     return { success: false, error: 'Unknown action' };
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
+
+    if (isSupabaseConfigured && !usingLocalFallback) {
+      const adminKey = adminAuth.getAdminKey() || '';
+      const result = await supabaseEmployeeService.delete(adminKey, deleteTarget.employee_number);
+      if (result.success) {
+        showToast('Employee deleted successfully.');
+        await fetchEmployees();
+      } else {
+        showToast(result.error || 'Failed to delete employee.');
+      }
+      setDeleteTarget(null);
+      return;
+    }
+
     const result = employeeStore.delete(deleteTarget.id || '');
     if (result.success) {
       showToast('Employee deleted successfully.');
+      await fetchEmployees();
     }
     setDeleteTarget(null);
   };
 
   const handleResetData = () => {
-    if (window.confirm('Reset all employee records back to default sample dataset?')) {
+    // Deliberately LOCAL-ONLY: this resets the local fallback copy used
+    // when Supabase isn't configured. It intentionally never touches the
+    // shared Supabase dataset — resetting live production event data back
+    // to a single sample employee from this button would be destructive
+    // and is out of scope for this migration.
+    const confirmMessage = isSupabaseConfigured
+      ? 'Reset the LOCAL fallback copy back to default sample data? This does NOT affect the shared Supabase dataset other devices see.'
+      : 'Reset all employee records back to default sample dataset?';
+    if (window.confirm(confirmMessage)) {
       employeeStore.resetToDefaults();
-      showToast('Reset to default sample employee records.');
+      if (usingLocalFallback) {
+        fetchEmployees();
+      }
+      showToast('Reset the local fallback copy to default sample employee records.');
     }
   };
 
@@ -221,6 +332,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </div>
 
+      {/* Data source notice: only shown when NOT reading the shared Supabase
+          dataset, so it's always obvious when the admin is looking at a
+          local-only, per-device copy rather than the shared production data. */}
+      {usingLocalFallback && (
+        <div className="mb-5 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Supabase is not configured — showing local device data only</p>
+            <p className="text-amber-800 mt-0.5">
+              Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to read/write the shared employee
+              dataset that all devices see. Until then, this view reflects only this browser's
+              local data.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* MEM Priority Group Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {PRIORITY_GROUP_SUMMARY_ORDER.map((key) => (
@@ -241,10 +369,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* Main Admin Panel Card */}
       <div className="bg-white/95 backdrop-blur-md rounded-3xl p-5 sm:p-7 shadow-xl shadow-slate-200/60 border border-slate-100">
-        
+
         {/* Metric & Primary Action Toolbar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-          
+
           {/* Total Employees Metric */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
@@ -255,7 +383,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 Total Employees
               </p>
               <p className="text-xl font-extrabold text-slate-900">
-                {employees.length.toLocaleString()}
+                {loadState === 'loading' ? '—' : employees.length.toLocaleString()}
               </p>
             </div>
           </div>
@@ -309,122 +437,159 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </button>
             )}
           </div>
-          {searchQuery && (
+          {searchQuery && loadState === 'loaded' && (
             <p className="text-[11px] text-slate-500 mt-1.5 pl-1">
               Found {filteredEmployees.length} matching {filteredEmployees.length === 1 ? 'employee' : 'employees'}
             </p>
           )}
         </div>
 
+        {/* Loading state */}
+        {loadState === 'loading' && (
+          <div className="py-16 flex flex-col items-center justify-center gap-3 text-slate-500">
+            <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+            <p className="text-xs font-semibold">Loading employee data...</p>
+          </div>
+        )}
+
+        {/* Network / RPC error state */}
+        {loadState === 'error' && (
+          <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-800">Couldn't load employee data</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">{loadError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchEmployees()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
+        )}
+
         {/* Responsive Employee Table — horizontal scroll is expected/acceptable on small screens.
             Email is intentionally not shown here (still retained internally for import/data
             integrity); the main admin view focuses on Employee Number, Name, MEM Group,
             MEM Priority Group, Table Number, and Excel Row. */}
-        <div className="overflow-x-auto rounded-2xl border border-slate-100">
-          <table className="w-full text-left text-xs border-collapse min-w-[760px]">
-            <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200/80">
-              <tr>
-                <th className="py-3 px-4">Employee Number</th>
-                <th className="py-3 px-4">Name</th>
-                <th className="py-3 px-4">MEM Group</th>
-                <th className="py-3 px-4">MEM Priority Group</th>
-                <th className="py-3 px-4">Table Number</th>
-                <th className="py-3 px-4">Excel Row</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {filteredEmployees.length === 0 ? (
+        {loadState === 'loaded' && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-100">
+            <table className="w-full text-left text-xs border-collapse min-w-[760px]">
+              <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200/80">
                 <tr>
-                  <td colSpan={7} className="text-center py-10 text-slate-500">
-                    <p className="text-sm font-semibold">No employees found</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {searchQuery ? 'Try changing your search terms.' : 'Add your first employee using the button above.'}
-                    </p>
-                  </td>
+                  <th className="py-3 px-4">Employee Number</th>
+                  <th className="py-3 px-4">Name</th>
+                  <th className="py-3 px-4">MEM Group</th>
+                  <th className="py-3 px-4">MEM Priority Group</th>
+                  <th className="py-3 px-4">Table Number</th>
+                  <th className="py-3 px-4">Excel Row</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
-              ) : (
-                filteredEmployees.map((emp) => {
-                  const displayName = normalizeDisplayName(emp.name || emp.employee_name || '');
-                  return (
-                    <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-indigo-900 whitespace-nowrap">
-                        {emp.employee_number}
-                      </td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
-                        {displayName}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                          {emp.mem_group}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                          {emp.mem_priority_group}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex flex-wrap gap-1 max-w-[220px]">
-                          {emp.tables && emp.tables.length > 0 ? (
-                            emp.tables.map((t, i) => (
-                              <span
-                                key={i}
-                                className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-50 text-cyan-800 border border-cyan-100 whitespace-nowrap"
-                              >
-                                {t}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-slate-400 italic">None</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-slate-600 whitespace-nowrap">
-                        {emp.excel_row != null ? (
-                          <span
-                            title="Original row number from the MEM Grouping worksheet — never recalculated after import"
-                          >
-                            {emp.excel_row}
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {filteredEmployees.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-10 text-slate-500">
+                      <p className="text-sm font-semibold">No employees found</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {searchQuery
+                          ? 'Try changing your search terms.'
+                          : employees.length === 0
+                          ? 'No employees yet — upload a Client XLSX or add one manually using the buttons above.'
+                          : 'Add your first employee using the button above.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredEmployees.map((emp) => {
+                    const displayName = normalizeDisplayName(emp.name || emp.employee_name || '');
+                    return (
+                      <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-4 font-mono font-bold text-indigo-900 whitespace-nowrap">
+                          {emp.employee_number}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
+                          {displayName}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            {emp.mem_group}
                           </span>
-                        ) : (
-                          <span className="text-slate-300 italic font-sans">—</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="inline-flex items-center gap-1">
-                          <button
-                            type="button"
-                            id={`edit-btn-${emp.employee_number}`}
-                            onClick={() => handleOpenEdit(emp)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
-                            title="Edit employee"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            id={`delete-btn-${emp.employee_number}`}
-                            onClick={() => setDeleteTarget(emp)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title="Delete employee"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                            {emp.mem_priority_group}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {emp.tables && emp.tables.length > 0 ? (
+                              emp.tables.map((t, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-50 text-cyan-800 border border-cyan-100 whitespace-nowrap"
+                                >
+                                  {t}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-slate-400 italic">None</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-slate-600 whitespace-nowrap">
+                          {emp.excel_row != null ? (
+                            <span
+                              title="Original row number from the MEM Grouping worksheet — never recalculated after import"
+                            >
+                              {emp.excel_row}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic font-sans">—</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              id={`edit-btn-${emp.employee_number}`}
+                              onClick={() => handleOpenEdit(emp)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                              title="Edit employee"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              id={`delete-btn-${emp.employee_number}`}
+                              onClick={() => setDeleteTarget(emp)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              title="Delete employee"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Sync note */}
         <div className="mt-5 pt-4 border-t border-slate-100 text-center text-xs text-slate-500">
           <p>
-            Any addition, edit, or deletion is automatically synchronized and immediately available to attendees scanning the QR code.
+            {usingLocalFallback
+              ? 'Local-only mode: changes are saved to this device only until Supabase is configured.'
+              : 'Any addition, edit, or deletion is saved to the shared database and immediately available to attendees scanning the QR code.'}
           </p>
         </div>
 
@@ -453,6 +618,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         onClose={() => setIsImportModalOpen(false)}
         onImportComplete={(count) => {
           showToast(`Successfully imported ${count.toLocaleString()} employees from Excel.`);
+          fetchEmployees();
         }}
       />
 
@@ -461,7 +627,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         isOpen={isBackupsModalOpen}
         onClose={() => setIsBackupsModalOpen(false)}
         onRestored={() => {
-          showToast('Employee dataset restored from backup snapshot.');
+          showToast('Local fallback dataset restored from backup snapshot.');
+          if (usingLocalFallback) {
+            fetchEmployees();
+          }
         }}
       />
     </div>

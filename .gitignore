@@ -7,3 +7,10 @@ coverage/
 .env*
 !.env.example
 package-lock.json
+
+# One-time data-load scripts contain real employee PII (names/emails) and
+# must never be committed to this public repository. Run these locally
+# against the Supabase SQL Editor, then keep/delete the local file as you
+# see fit — they are not application source and are not needed after the
+# one-time load has been applied.
+supabase/seed_*.sql

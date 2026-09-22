@@ -15,7 +15,7 @@ interface EmployeeModalProps {
     mem_group: string;
     mem_priority_group: string;
     tables: string;
-  }) => { success: boolean; error?: string };
+  }) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
 }
 
 const PRIORITY_GROUP_OPTIONS = ['Growth', 'Efficiency', 'DT', 'HP Teams'];
@@ -34,6 +34,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   const [memPriorityGroup, setMemPriorityGroup] = useState('');
   const [tablesInput, setTablesInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -62,23 +63,30 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsSubmitting(true);
 
-    const result = onSave({
-      employee_number: employeeNumber,
-      name,
-      email: email.trim() || undefined,
-      mem_group: memGroup,
-      mem_priority_group: memPriorityGroup,
-      tables: tablesInput,
-    });
+    try {
+      const result = await onSave({
+        employee_number: employeeNumber,
+        name,
+        email: email.trim() || undefined,
+        mem_group: memGroup,
+        mem_priority_group: memPriorityGroup,
+        tables: tablesInput,
+      });
 
-    if (result.success) {
-      onClose();
-    } else {
-      setError(result.error || 'Failed to save employee record.');
+      if (result.success) {
+        onClose();
+      } else {
+        setError(result.error || 'Failed to save employee record.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save employee record.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -238,9 +246,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               <button
                 type="submit"
                 id="save-employee-button"
-                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-700 hover:bg-indigo-800 active:scale-95 transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
+                disabled={isSubmitting}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-700 hover:bg-indigo-800 active:scale-95 transition-all shadow-md shadow-indigo-600/20 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {mode === 'add' ? 'SAVE EMPLOYEE' : 'SAVE CHANGES'}
+                {isSubmitting ? 'SAVING...' : mode === 'add' ? 'SAVE EMPLOYEE' : 'SAVE CHANGES'}
               </button>
             </div>
           </form>
