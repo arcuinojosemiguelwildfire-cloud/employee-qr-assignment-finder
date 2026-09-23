@@ -152,24 +152,28 @@ export function normalizeDisplayName(rawName: string): string {
 
 /**
  * The single "combined MEM Group" display convention used across the app
- * (public assignment result, admin verification tools): joins
- * `mem_priority_group` + " " + `mem_group`, e.g. "Digital Transformation 7"
- * or "Efficiency 5". The two underlying fields are never modified — this
- * only formats them for display. Each part is trimmed and blank/null/
- * undefined values are dropped so missing data never shows as "undefined",
- * "null", or leaves a stray leading/trailing space; falls back to "—" if
- * both parts are empty.
+ * (public assignment result, admin verification tools): formats as
+ * "Group {mem_group}: {mem_priority_group}", e.g. "Group 5: Efficiency" or
+ * "Group Z: Unassigned". The two underlying fields are never modified —
+ * this only formats them for display. Values are trimmed; blank/null/
+ * undefined values are handled gracefully so missing data never shows as
+ * "undefined", "null", or "NaN":
+ *   - both present  -> "Group {mem_group}: {mem_priority_group}"
+ *   - only mem_group        -> "Group {mem_group}"
+ *   - only mem_priority_group -> "{mem_priority_group}" (no "Group" prefix)
+ *   - both blank/undefined  -> "—"
  */
 export function formatCombinedMemGroup(
   memPriorityGroup: string | undefined | null,
   memGroup: string | undefined | null
 ): string {
-  return (
-    [memPriorityGroup, memGroup]
-      .map((v) => (v == null ? '' : String(v).trim()))
-      .filter(Boolean)
-      .join(' ') || '—'
-  );
+  const priority = memPriorityGroup == null ? '' : String(memPriorityGroup).trim();
+  const group = memGroup == null ? '' : String(memGroup).trim();
+
+  if (group && priority) return `Group ${group}: ${priority}`;
+  if (group) return `Group ${group}`;
+  if (priority) return priority;
+  return '—';
 }
 
 /**
