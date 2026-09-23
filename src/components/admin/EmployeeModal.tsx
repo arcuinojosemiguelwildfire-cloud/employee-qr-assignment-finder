@@ -12,9 +12,11 @@ interface EmployeeModalProps {
     employee_number: string;
     name: string;
     email?: string;
-    mem_group: string;
-    mem_priority_group: string;
-    tables: string;
+    // Optional — the client's data legitimately has "Unassigned" employees
+    // with blank MEM Group / MEM Priority Group / Table #.
+    mem_group?: string;
+    mem_priority_group?: string;
+    tables?: string;
   }) => Promise<{ success: boolean; error?: string }> | { success: boolean; error?: string };
 }
 
@@ -73,9 +75,9 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         employee_number: employeeNumber,
         name,
         email: email.trim() || undefined,
-        mem_group: memGroup,
-        mem_priority_group: memPriorityGroup,
-        tables: tablesInput,
+        mem_group: memGroup.trim() || undefined,
+        mem_priority_group: memPriorityGroup.trim() || undefined,
+        tables: tablesInput.trim() || undefined,
       });
 
       if (result.success) {
@@ -185,29 +187,27 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 pl-0.5">
-                  MEM Group <span className="text-rose-500">*</span>
+                  MEM Group (Optional)
                 </label>
                 <input
                   type="text"
-                  required
                   value={memGroup}
                   onChange={(e) => setMemGroup(e.target.value)}
-                  placeholder="e.g. 5"
+                  placeholder="e.g. 5 — leave blank if Unassigned"
                   className="w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 bg-slate-50 rounded-xl border border-slate-200 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 pl-0.5">
-                  MEM Priority Group <span className="text-rose-500">*</span>
+                  MEM Priority Group (Optional)
                 </label>
                 <input
                   type="text"
-                  required
                   list="priority-group-list"
                   value={memPriorityGroup}
                   onChange={(e) => setMemPriorityGroup(e.target.value)}
-                  placeholder="e.g. Efficiency"
+                  placeholder="e.g. Efficiency — leave blank if Unassigned"
                   className="w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 bg-slate-50 rounded-xl border border-slate-200 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
                 />
                 <datalist id="priority-group-list">
@@ -220,18 +220,18 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 pl-0.5">
-                Table # <span className="text-rose-500">*</span>
+                Table # (Optional)
               </label>
               <input
                 type="text"
-                required
                 value={tablesInput}
                 onChange={(e) => setTablesInput(e.target.value)}
-                placeholder="e.g. Table 3,6,8,9,12 or Table 12"
+                placeholder="e.g. Table 3,6,8,9,12 or Table 12 — leave blank if none"
                 className="w-full px-3.5 py-2.5 text-sm font-semibold text-slate-900 bg-slate-50 rounded-xl border border-slate-200 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-100 outline-none transition-all"
               />
               <p className="text-[11px] text-slate-400 mt-1 pl-0.5">
-                Multiple tables can be separated by commas (e.g. "Table 3,6,8,9,12" or "3, 6, 8").
+                Multiple tables can be separated by commas (e.g. "Table 3,6,8,9,12" or "3, 6, 8"). An
+                employee may legitimately have no MEM Group/Priority Group and/or no Table.
               </p>
             </div>
 

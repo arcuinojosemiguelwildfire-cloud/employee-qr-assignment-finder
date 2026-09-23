@@ -216,11 +216,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     employee_number: string;
     name: string;
     email?: string;
-    mem_group: string;
-    mem_priority_group: string;
-    tables: string;
+    // Optional — an employee may legitimately have no MEM Group/Priority
+    // Group and/or no Table (e.g. "Unassigned" but still has a table, or
+    // vice versa). Never required.
+    mem_group?: string;
+    mem_priority_group?: string;
+    tables?: string;
   }): Promise<{ success: boolean; error?: string }> => {
-    const tablesArray = data.tables
+    const tablesArray = (data.tables || '')
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
@@ -618,14 +621,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {displayName}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                            {emp.mem_group}
-                          </span>
+                          {emp.mem_group ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              {emp.mem_group}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic font-sans">—</span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                            {emp.mem_priority_group}
-                          </span>
+                          {emp.mem_priority_group ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                              {emp.mem_priority_group}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic font-sans">—</span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4">
                           <div className="flex flex-wrap gap-1 max-w-[220px]">

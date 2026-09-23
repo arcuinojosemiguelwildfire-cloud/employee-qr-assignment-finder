@@ -105,8 +105,11 @@ export const supabaseEmployeeService = {
       employee_number: string;
       name: string;
       email?: string;
-      mem_group: string;
-      mem_priority_group: string;
+      // Optional — an "Unassigned" employee may have neither, or a table
+      // with neither; the two are independent. Sent to Supabase as SQL
+      // NULL (not an empty-string sentinel) when blank.
+      mem_group?: string;
+      mem_priority_group?: string;
       tables: string[];
     }
   ): Promise<{ success: boolean; data?: EmployeeAssignment; error?: string }> {
@@ -117,8 +120,8 @@ export const supabaseEmployeeService = {
       p_employee_number: data.employee_number,
       p_name: data.name,
       p_email: data.email || null,
-      p_mem_group: data.mem_group,
-      p_mem_priority_group: data.mem_priority_group,
+      p_mem_group: data.mem_group?.trim() || null,
+      p_mem_priority_group: data.mem_priority_group?.trim() || null,
       p_tables: data.tables,
       p_excel_row: null,
     });
@@ -138,8 +141,8 @@ export const supabaseEmployeeService = {
       employee_number: string;
       name: string;
       email?: string;
-      mem_group: string;
-      mem_priority_group: string;
+      mem_group?: string;
+      mem_priority_group?: string;
       tables: string[];
       excel_row?: number;
     }
@@ -151,8 +154,8 @@ export const supabaseEmployeeService = {
       p_employee_number: data.employee_number,
       p_name: data.name,
       p_email: data.email || null,
-      p_mem_group: data.mem_group,
-      p_mem_priority_group: data.mem_priority_group,
+      p_mem_group: data.mem_group?.trim() || null,
+      p_mem_priority_group: data.mem_priority_group?.trim() || null,
       p_tables: data.tables,
       p_excel_row: data.excel_row ?? null,
     });
@@ -193,8 +196,10 @@ export const supabaseEmployeeService = {
       employee_number: e.employee_number,
       name: e.name,
       email: e.email || null,
-      mem_group: e.mem_group,
-      mem_priority_group: e.mem_priority_group,
+      // Blank/undefined -> explicit SQL NULL, never an empty-string
+      // sentinel and never rejected — "Unassigned" employees are valid.
+      mem_group: e.mem_group?.trim() || null,
+      mem_priority_group: e.mem_priority_group?.trim() || null,
       tables: e.tables || [],
       excel_row: e.excel_row ?? null,
     }));

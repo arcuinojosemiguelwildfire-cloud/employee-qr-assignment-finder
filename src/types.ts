@@ -3,8 +3,16 @@ export interface EmployeeAssignment {
   employee_number: string;
   name: string;
   email?: string;
-  mem_group: string;
-  mem_priority_group: string;
+  // Optional: the client's XLSX legitimately has "Unassigned" employees with
+  // no MEM Group / MEM Priority Group (they may still have a Table Number).
+  // A blank/undefined value here is a valid, normal employee state — never
+  // treat it as an import error or invalid record. Represented as
+  // `undefined` (never an empty-string sentinel) when not set, consistent
+  // with how `email` already works; the combined public display
+  // (formatCombinedMemGroup in seedEmployees.ts) already renders "—" for
+  // this case.
+  mem_group?: string;
+  mem_priority_group?: string;
   tables: string[];
   // Backward compatibility alias for UI references
   employee_name?: string;

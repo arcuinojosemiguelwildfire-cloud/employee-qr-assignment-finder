@@ -163,6 +163,16 @@ function findHeaderColumns(sheetData: any[][]): ColumnIndices | { error: string 
       if (!colText) continue;
 
       if (
+        // "Group MEM" (e.g. "Group 5: Efficiency") is a derived/combined
+        // display column in the newer client XLSX structure. It must NEVER
+        // be captured as MEM Group or MEM Priority Group — explicitly
+        // skipped first, before either of those checks can run, so word
+        // order in a substring match can never confuse the two.
+        colText === 'group mem' ||
+        colText.includes('group mem')
+      ) {
+        continue;
+      } else if (
         colText === 'name + email address' ||
         colText === 'name + email' ||
         colText.includes('name + email') ||
@@ -181,6 +191,8 @@ function findHeaderColumns(sheetData: any[][]): ColumnIndices | { error: string 
       ) {
         memGroupCol = c;
       } else if (
+        // Covers both the legacy "Table #" header and the newer
+        // "Table # - FINAL" header (startsWith already matches either).
         colText === 'table #' ||
         colText === 'table#' ||
         colText === 'table' ||
@@ -226,6 +238,29 @@ function findHeaderColumns(sheetData: any[][]): ColumnIndices | { error: string 
 }
 
 /**
+ * ─────────────────────────────────────────────────────────────────────────
+ * Current "MEM Grouping" sheet column structure
+ * ─────────────────────────────────────────────────────────────────────────
+ *   1. Name + Email Address   -> parsed into name/email (see parseNameAndEmail)
+ *   2. MEM Group              -> mem_group                (OPTIONAL)
+ *   3. MEM Priority Group     -> mem_priority_group        (OPTIONAL)
+ *   4. Group MEM              -> ignored (derived/combined display column,
+ *                                 e.g. "Group 5: Efficiency" — never stored,
+ *                                 never used as a substitute for the two
+ *                                 separate fields above; see the explicit
+ *                                 skip in findHeaderColumns)
+ *   5. Table # - FINAL        -> tables                    (OPTIONAL)
+ *   6. Employee Number        -> employee_number           (REQUIRED)
+ *
+ * MEM Group / MEM Priority Group / Table # are independent of one another
+ * and independent of Employee Number's validity — the client's real data
+ * has "Unassigned" employees with blank MEM Group + MEM Priority Group who
+ * may or may not also have a Table Number. None of the three being blank
+ * makes a row invalid; a row is only rejected for a missing/duplicate
+ * Employee Number or a missing Name. Blank optional fields are stored as
+ * `undefined` (or `[]` for tables), never rejected, never invented.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
  * Safely parses an uploaded XLSX/XLS file buffer into an ImportPreviewData structure.
  * Never throws uncaught exceptions or exposes internal traces.
  */
@@ -376,42 +411,17 @@ export async function parseXlsxFile(
         });
       }
 
-      // Validate MEM Group
-      if (!rawMemGroup) {
-        issues.push({
-          rowNumber: excelRowNum,
-          type: 'error',
-          field: 'MEM Group',
-          message: `Row ${excelRowNum}: MEM Group is missing.`,
-        });
-        rowHasError = true;
-      }
-
-      // Validate MEM Priority Group
-      if (!rawPriorityGroup) {
-        issues.push({
-          rowNumber: excelRowNum,
-          type: 'error',
-          field: 'MEM Priority Group',
-          message: `Row ${excelRowNum}: MEM Priority Group is missing.`,
-        });
-        rowHasError = true;
-      }
-
-      // Validate & Normalize Tables (Room completely excluded)
+      // MEM Group, MEM Priority Group, and Table # are all OPTIONAL.
+      // The client's data legitimately has "Unassigned" employees with no
+      // MEM Group/Priority Group at all (some of whom still have a Table
+      // Number, some of whom don't — the two are independent; neither
+      // implies anything about the other). None of the three ever cause a
+      // row to be rejected — only Employee Number (validated above) and
+      // Name (validated above) can do that. This is intentional per the
+      // client's real data shape, not an oversight.
       const parsedTables = normalizeTables(rawTable);
       // Deduplicate table entries preserving order
       const uniqueTables = Array.from(new Set(parsedTables));
-
-      if (uniqueTables.length === 0) {
-        issues.push({
-          rowNumber: excelRowNum,
-          type: 'error',
-          field: 'Table #',
-          message: `Row ${excelRowNum}: Table assignment is missing.`,
-        });
-        rowHasError = true;
-      }
 
       // If this row has no field errors, add to potential valid employees
       if (!rowHasError) {
@@ -421,8 +431,10 @@ export async function parseXlsxFile(
           name,
           employee_name: name,
           email: email || undefined,
-          mem_group: rawMemGroup,
-          mem_priority_group: rawPriorityGroup,
+          // Blank stays `undefined`, never an empty-string sentinel or an
+          // invented value — see EmployeeAssignment in types.ts.
+          mem_group: rawMemGroup || undefined,
+          mem_priority_group: rawPriorityGroup || undefined,
           tables: uniqueTables,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

@@ -566,12 +566,15 @@ export const XlsxImportModal: React.FC<XlsxImportModalProps> = ({
                               {row.name || <span className="text-rose-500 italic">missing</span>}
                             </td>
                             <td className="py-2.5 px-3">
+                              {/* Blank is a valid "Unassigned" state, not an
+                                  error — never styled like the genuinely
+                                  required employeeNumber/name fields above. */}
                               {row.memGroup ? (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
                                   {row.memGroup}
                                 </span>
                               ) : (
-                                <span className="text-rose-500 italic text-[11px]">missing</span>
+                                <span className="text-slate-300 italic text-[11px]">—</span>
                               )}
                             </td>
                             <td className="py-2.5 px-3">
@@ -580,7 +583,7 @@ export const XlsxImportModal: React.FC<XlsxImportModalProps> = ({
                                   {row.memPriorityGroup}
                                 </span>
                               ) : (
-                                <span className="text-rose-500 italic text-[11px]">missing</span>
+                                <span className="text-slate-300 italic text-[11px]">—</span>
                               )}
                             </td>
                             <td className="py-2.5 px-3">
@@ -596,7 +599,7 @@ export const XlsxImportModal: React.FC<XlsxImportModalProps> = ({
                                   ))}
                                 </div>
                               ) : (
-                                <span className="text-rose-500 italic text-[11px]">missing</span>
+                                <span className="text-slate-300 italic text-[11px]">—</span>
                               )}
                             </td>
                             <td className="py-2.5 px-3 text-center" title={row.reasons.join(' | ')}>

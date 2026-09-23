@@ -169,9 +169,12 @@ export const employeeStore = {
     employee_number: string;
     name: string;
     email?: string;
-    mem_group: string;
-    mem_priority_group: string;
-    tables: string[] | string;
+    // Optional — the client's data legitimately has "Unassigned" employees
+    // with blank MEM Group / MEM Priority Group (some still with a Table
+    // Number, some without; the two are independent). Never require these.
+    mem_group?: string;
+    mem_priority_group?: string;
+    tables?: string[] | string;
   }): { success: boolean; data?: EmployeeAssignment; error?: string } {
     const list = loadEmployees();
     const cleanNumber = data.employee_number.trim().toUpperCase().replace(/^#/, '');
@@ -182,17 +185,8 @@ export const employeeStore = {
     if (!data.name.trim()) {
       return { success: false, error: 'Name cannot be empty.' };
     }
-    if (!data.mem_group.trim()) {
-      return { success: false, error: 'MEM Group cannot be empty.' };
-    }
-    if (!data.mem_priority_group.trim()) {
-      return { success: false, error: 'MEM Priority Group cannot be empty.' };
-    }
 
     const parsedTables = normalizeTables(data.tables);
-    if (parsedTables.length === 0) {
-      return { success: false, error: 'At least one table assignment is required.' };
-    }
 
     // Check uniqueness of employee number
     const exists = list.some(
@@ -212,8 +206,8 @@ export const employeeStore = {
       name: data.name.trim(),
       employee_name: data.name.trim(),
       email: data.email?.trim() || undefined,
-      mem_group: data.mem_group.trim(),
-      mem_priority_group: data.mem_priority_group.trim(),
+      mem_group: data.mem_group?.trim() || undefined,
+      mem_priority_group: data.mem_priority_group?.trim() || undefined,
       tables: parsedTables,
       created_at: now,
       updated_at: now,
@@ -234,9 +228,10 @@ export const employeeStore = {
       employee_number: string;
       name: string;
       email?: string;
-      mem_group: string;
-      mem_priority_group: string;
-      tables: string[] | string;
+      // Optional — see the matching comment on add() above.
+      mem_group?: string;
+      mem_priority_group?: string;
+      tables?: string[] | string;
     }
   ): { success: boolean; data?: EmployeeAssignment; error?: string } {
     const list = loadEmployees();
@@ -253,17 +248,8 @@ export const employeeStore = {
     if (!data.name.trim()) {
       return { success: false, error: 'Name cannot be empty.' };
     }
-    if (!data.mem_group.trim()) {
-      return { success: false, error: 'MEM Group cannot be empty.' };
-    }
-    if (!data.mem_priority_group.trim()) {
-      return { success: false, error: 'MEM Priority Group cannot be empty.' };
-    }
 
     const parsedTables = normalizeTables(data.tables);
-    if (parsedTables.length === 0) {
-      return { success: false, error: 'At least one table assignment is required.' };
-    }
 
     // Check if new employee number conflicts with someone else
     const conflict = list.some(
@@ -282,8 +268,8 @@ export const employeeStore = {
       name: data.name.trim(),
       employee_name: data.name.trim(),
       email: data.email?.trim() || undefined,
-      mem_group: data.mem_group.trim(),
-      mem_priority_group: data.mem_priority_group.trim(),
+      mem_group: data.mem_group?.trim() || undefined,
+      mem_priority_group: data.mem_priority_group?.trim() || undefined,
       tables: parsedTables,
       updated_at: new Date().toISOString(),
     };
@@ -392,10 +378,13 @@ export const employeeStore = {
     }
 
     try {
-      // 1. Validation check on all records
+      // 1. Validation check on all records. MEM Group / MEM Priority Group
+      // are intentionally NOT checked here — the client's data legitimately
+      // has "Unassigned" employees with both blank. Only Employee Number
+      // and Name are mandatory.
       for (let i = 0; i < newEmployees.length; i++) {
         const item = newEmployees[i];
-        if (!item.employee_number || !item.name || !item.mem_group || !item.mem_priority_group) {
+        if (!item.employee_number || !item.name) {
           return {
             success: false,
             count: 0,
