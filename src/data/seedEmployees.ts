@@ -55,6 +55,23 @@ export const PRIORITY_GROUP_DISPLAY_LABELS: Record<string, string> = {
   Growth: 'Growth',
 };
 
+/**
+ * Canonical priority group key -> FULL source-style label, with no
+ * parenthetical shorthand (unlike PRIORITY_GROUP_DISPLAY_LABELS above,
+ * which is specifically for the admin summary cards). Used to expand an
+ * abbreviated stored value (e.g. "HP Teams") back to the client's full
+ * term ("High Perf Teams") for display, without ever rewriting the
+ * underlying `mem_priority_group` value itself. Single source of truth —
+ * reused by formatCombinedMemGroup below and by
+ * employeeVerificationService.ts's Group Count Verification table.
+ */
+export const PRIORITY_GROUP_FULL_LABELS: Record<string, string> = {
+  DT: 'Digital Transformation',
+  Efficiency: 'Efficiency',
+  'HP Teams': 'High Perf Teams',
+  Growth: 'Growth',
+};
+
 /** Fixed display order for the admin dashboard's group summary cards. */
 export const PRIORITY_GROUP_SUMMARY_ORDER = ['DT', 'Efficiency', 'HP Teams', 'Growth'] as const;
 
@@ -162,13 +179,23 @@ export function normalizeDisplayName(rawName: string): string {
  *   - only mem_group        -> "Group {mem_group}"
  *   - only mem_priority_group -> "{mem_priority_group}" (no "Group" prefix)
  *   - both blank/undefined  -> "—"
+ *
+ * A known abbreviated form (e.g. a stored "HP Teams") is expanded to the
+ * client's full source-style term ("High Perf Teams") via
+ * PRIORITY_GROUP_FULL_LABELS above — the underlying `mem_priority_group`
+ * value is never rewritten, only what's shown here. Anything that isn't a
+ * recognized alias (e.g. "Unassigned", "Office of the CEO") passes through
+ * completely unchanged.
  */
 export function formatCombinedMemGroup(
   memPriorityGroup: string | undefined | null,
   memGroup: string | undefined | null
 ): string {
-  const priority = memPriorityGroup == null ? '' : String(memPriorityGroup).trim();
+  const rawPriority = memPriorityGroup == null ? '' : String(memPriorityGroup).trim();
   const group = memGroup == null ? '' : String(memGroup).trim();
+
+  const canonicalKey = normalizePriorityGroupKey(rawPriority);
+  const priority = (canonicalKey && PRIORITY_GROUP_FULL_LABELS[canonicalKey]) || rawPriority;
 
   if (group && priority) return `Group ${group}: ${priority}`;
   if (group) return `Group ${group}`;

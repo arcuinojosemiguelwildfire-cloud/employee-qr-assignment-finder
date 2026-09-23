@@ -1,5 +1,5 @@
 import { EmployeeAssignment } from '../types';
-import { normalizePriorityGroupKey } from '../data/seedEmployees';
+import { normalizePriorityGroupKey, PRIORITY_GROUP_FULL_LABELS } from '../data/seedEmployees';
 
 /**
  * Pure, read-only helpers for the Admin "Employee Data Verification"
@@ -174,13 +174,13 @@ const UNASSIGNED_MEM_GROUP = '6';
 
 export const EXPECTED_GRAND_TOTAL = 237;
 
-/** Display order + label for this table (plain labels, matching the reference table exactly). */
+/** Display order + label for this table (plain labels, matching the reference table exactly).
+ * Reuses the SAME PRIORITY_GROUP_FULL_LABELS as formatCombinedMemGroup in
+ * seedEmployees.ts (single source of truth — not a second copy), plus the
+ * one entry that's specific to this table's own "Unassigned" bucket. */
 const PRIORITY_GROUP_ORDER = ['DT', 'Efficiency', 'Growth', 'HP Teams'] as const;
 const PRIORITY_GROUP_TABLE_LABELS: Record<string, string> = {
-  DT: 'Digital Transformation',
-  Efficiency: 'Efficiency',
-  Growth: 'Growth',
-  'HP Teams': 'High Perf Teams',
+  ...PRIORITY_GROUP_FULL_LABELS,
   [UNASSIGNED_KEY]: 'Unassigned',
 };
 
